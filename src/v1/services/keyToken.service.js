@@ -31,7 +31,7 @@ class KeyTokenService {
     };
 
     static findByUserId = async (userId) => {
-        console.log("Searching for userId:", userId);
+        // console.log("Searching for userId:", userId);
         return await keytokenModel
             .findOne({ user: Types.ObjectId(userId) })
             .lean();

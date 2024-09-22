@@ -18,6 +18,7 @@ class Database {
         mongoose
             .connect(mongoUri, {
                 maxPoolSize: 70,
+                serverSelectionTimeoutMS: 5000,
             })
             .then(() => console.log("Connected to MongoDB successfully!"))
             .catch((err) => {

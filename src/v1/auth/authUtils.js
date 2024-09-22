@@ -3,11 +3,12 @@ const jwt = require("jsonwebtoken");
 const { asyncHandler } = require("../helpers/asyncHandler");
 const { AuthFailureError, NotFoundError } = require("../core/error.response");
 const { findByUserId } = require("../services/keyToken.service");
-
+const JWT = require("jsonwebtoken");
 const HEADER = {
     API_KEY: "x-api-key",
     CLIENT_ID: "x-client-id",
     AUTHORIZATION: "authorization",
+    REFRESHTOKEN: "x-rtoken-id",
 };
 const createTokenPair = async (payload, publicKey, privateKey) => {
     try {
@@ -37,36 +38,40 @@ const createTokenPair = async (payload, publicKey, privateKey) => {
 };
 
 const authentication = asyncHandler(async (req, res, next) => {
-    /*
-    1 - Check userId missing?
-    2 - Get accessToken
-    3 - Verify accessToken
-    4 - Check user in db
-    5 - Check keyStore with userId
-    6 - OK all => return next()
-    */
     const userId = req.headers[HEADER.CLIENT_ID]?.toString();
-    // 1 - Check userId missing?
     if (!userId) {
         throw new AuthFailureError("Invalid Request");
     }
-    // 2 - Get accessToken
+    if (req.headers[HEADER.REFRESHTOKEN]) {
+        try {
+            const refreshToken = req.headers[HEADER.REFRESHTOKEN];
+            const decodeUser = JWT.verify(refreshToken, keyStore.privateKey);
+            if (userId !== decodeUser.userId)
+                throw new AuthFailureError("Invalid userId");
+            req.keyStore = keyStore;
+            req.user = decodeUser;
+
+            return next();
+        } catch (error) {
+            throw error;
+        }
+    }
     const accessToken = req.headers[HEADER.AUTHORIZATION]?.toString();
     if (!accessToken) {
         throw new AuthFailureError("Invalid Request");
     }
-    // 3 - Verify accessToken
     const keyStore = await findByUserId(userId);
     if (!keyStore) {
         throw new AuthFailureError("Not found keyStore");
     }
-
     try {
         const decodeUser = jwt.verify(accessToken, keyStore.publicKey);
         if (userId !== decodeUser.userId) {
             throw new AuthFailureError("Invalid userId");
         }
         req.keyStore = keyStore;
+        req.user = decodeUser;
+
         return next();
     } catch (error) {
         throw error;
